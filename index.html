@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>America 250: Figures of the Revolution Quiz</title>
+    <style>
+        :root {
+            --bg-color: #f4f1ea;
+            --card-bg: #ffffff;
+            --ink-color: #1a1a1a;
+            --accent-blue: #003366;
+            --accent-red: #990000;
+            --border-style: 1px solid #ccc;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e0dcd0;
+            color: var(--ink-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            background-color: var(--accent-blue);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 { margin: 0; font-size: 1.5rem; }
+
+        .score-board {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 0.2rem;
+        }
+
+        .main-container {
+            max-width: 1600px;
+            width: 98%;
+            margin: 1rem auto;
+        }
+
+        /* Fluid 5-column grid that shrinks rather than wrapping aggressively */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+
+        .stamp-card {
+            background: var(--card-bg);
+            border: var(--border-style);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            min-height: 400px;
+            overflow: hidden;
+        }
+
+        .stamp-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Windowing coordinates: (26,26) to (275,313)
+           Resulting Crop: 249px width, 287px height
+        */
+        .stamp-img-container {
+            width: 100%;
+            aspect-ratio: 249 / 287; 
+            overflow: hidden;
+            background: #eee;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .stamp-img-container img {
+            position: absolute;
+            /* Based on original width of ~301px, scaling factor is 301/249 = 1.2088 */
+            width: 120.88%; 
+            height: auto;
+            /* Shifted by x=26 and y=26 relative to the crop width 249 */
+            /* 26 / 249 = 0.1044 or 10.44% */
+            left: -10.44%;
+            top: -10.44%; 
+            display: block;
+        }
+
+        .stamp-info {
+            flex-grow: 1;
+            padding-top: 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .name-slot {
+            font-family: 'Times New Roman', serif;
+            font-weight: bold;
+            font-size: clamp(0.8rem, 1.2vw, 1.1rem);
+            text-transform: uppercase;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+            line-height: 1;
+            border-bottom: 1px solid #eee;
+        }
+
+        .desc-slot {
+            font-size: clamp(0.7rem, 0.9vw, 0.85rem);
+            line-height: 1.2;
+            color: #444;
+            min-height: 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 0;
+        }
+
+        .card-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-top: 6px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 6px;
+            box-sizing: border-box;
+            border: 1px solid var(--accent-blue);
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            padding: 6px 4px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            transition: background 0.2s;
+        }
+
+        .btn-guess { background: var(--accent-blue); color: white; }
+        .btn-bank { background: var(--accent-red); color: white; }
+        .btn-desc { background: #555; color: white; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .bank-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .bank-item {
+            background: white;
+            border: 1px solid #ccc;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bank-item:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        #msg-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: var(--ink-color);
+            color: white;
+            border-radius: 20px;
+            display: none;
+            z-index: 2000;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive thresholds for wrapping */
+        @media (max-width: 800px) { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 500px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>America 250: Figures of the Revolution</h1>
+    <div class="score-board">Score: <span id="current-score">0</span> / 1000</div>
+</header>
+
+<div class="main-container">
+    <div id="gallery" class="gallery-grid"></div>
+</div>
+
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal" id="close-modal">&times;</span>
+        <h2 id="modal-title">Bank</h2>
+        <p id="modal-instr" style="margin-top:-5px; color:#666; font-size: 0.9rem;"></p>
+        <div id="bank-list" class="bank-list"></div>
+    </div>
+</div>
+
+<div id="msg-box"></div>
+
+<script>
+    const data = [
+        { id: "01", name: "Paul Revere", aliases: ["Revere", "P. Revere"], description: "Silversmith and artist who famously warned of the British advance on Lexington and Concord", image: "01.png" },
+        { id: "02", name: "John Jay", aliases: ["Jay", "J. Jay"], description: "Skilled diplomat who helped negotiate the Treaty of Paris, securing U.S. independence", image: "02.png" },
+        { id: "03", name: "Lemuel Haynes", aliases: ["Haynes", "L. Haynes"], description: "Military veteran and ordained minister who condemned African American enslavement", image: "03.png" },
+        { id: "04", name: "Nathanael Greene", aliases: ["Greene", "N. Greene", "Nathaniel Greene"], description: "Quaker and skillful general whose tactics turned the tide of war by ending British occupation of the South", image: "04.png" },
+        { id: "05", name: "James Armistead", aliases: ["Armistead", "J. Armistead", "James Armistead Lafayette"], description: "Enslaved African American who gathered intelligence for the Continental Army", image: "05.png" },
+        { id: "06", name: "Thomas Paine", aliases: ["Paine", "T. Paine"], description: "Author of influential pamphlet Common Sense, which helped convince the colonists to break with Britain", image: "06.png" },
+        { id: "07", name: "Thomas Jefferson", aliases: ["Jefferson", "T. Jefferson"], description: "Principal author of the Declaration of Independence, first U.S. secretary of state, and the nation’s third president", image: "07.png" },
+        { id: "08", name: "Elizabeth Freeman", aliases: ["Freeman", "E. Freeman", "Mumbet"], description: "Known as Mumbet, used the 1780 Massachusetts Constitution to help secure the abolition of slavery in the state", image: "08.png" },
+        { id: "09", name: "Abigail Adams", aliases: ["Adams", "A. Adams"], description: "Eloquent advocate for American independence and women’s rights", image: "09.png" },
+        { id: "10", name: "George Washington", aliases: ["Washington", "G. Washington"], description: "Commander in chief of the Continental Army and first U.S. president", image: "10.png" },
+        { id: "11", name: "Bernardo de Gálvez", aliases: ["Galvez", "Bernardo de Galvez", "B. de Galvez"], description: "Governor of Spanish Louisiana who aided patriots and drove the British from West Florida", image: "11.png" },
+        { id: "12", name: "Alexander Hamilton", aliases: ["Hamilton", "A. Hamilton"], description: "Chief aide to George Washington, advocate for the Constitution, and founder of the U.S. financial system", image: "12.png" },
+        { id: "13", name: "Patrick Henry", aliases: ["Henry", "P. Henry"], description: "Orator whose passionate speeches rallied the patriots against British rule", image: "13.png" },
+        { id: "14", name: "Thaddeus Kosciuszko", aliases: ["Kosciuszko", "T. Kosciuszko"], description: "Polish military engineer whose fortifications helped win the Battle of Saratoga", image: "14.png" },
+        { id: "15", name: "Benjamin Franklin", aliases: ["Franklin", "Ben Franklin", "B. Franklin"], description: "Signer of the Declaration of Independence, founder of the world’s first abolition society, and first U.S. Postmaster General", image: "15.png" },
+        { id: "16", name: "Mercy Otis Warren", aliases: ["Warren", "M. Warren", "M. O. Warren"], description: "Poet, playwright, and historian whose works chronicled the Revolution", image: "16.png" },
+        { id: "17", name: "John Adams", aliases: ["Adams", "J. Adams"], description: "Delegate to the Continental Congress, signer of the Declaration of Independence, and second U.S. president", image: "17.png" },
+        { id: "18", name: "James Madison", aliases: ["Madison", "J. Madison"], description: "Key architect of the Constitution, co-author of The Federalist, and fourth U.S. president", image: "18.png" },
+        { id: "19", name: "Esther DeBerdt Reed", aliases: ["Reed", "Esther Reed", "E. Reed"], description: "Author of “Sentiments of an American Woman,” which helped raise funds for the Continental Army", image: "19.png" },
+        { id: "20", name: "John Dickinson", aliases: ["Dickinson", "J. Dickinson"], description: "“Penman of the Revolution,” whose writings articulated America’s revolutionary ideals", image: "20.png" },
+        { id: "21", name: "Baron von Steuben", aliases: ["Steuben", "von Steuben"], description: "Prussian military officer who helped professionalize and transform the Continental Army into a formidable force", image: "21.png" },
+        { id: "22", name: "Deborah Sampson", aliases: ["Sampson", "D. Sampson"], description: "Disguised as a man to serve in the Continental Army and only woman of the era to earn a military pension", image: "22.png" },
+        { id: "23", name: "Agwalondongwas", aliases: ["Good Peter", "Agwalondongwas"], description: "Oneida leader called “Good Peter,” who supported American forces and worked for his people’s future", image: "23.png" },
+        { id: "24", name: "Cornplanter", aliases: ["Cornplanter"], description: "Seneca war chief and peace negotiator between Native nations and the U.S. after the Revolution", image: "24.png" },
+        { id: "25", name: "Marquis de Lafayette", aliases: ["Lafayette", "de Lafayette", "Gilbert du Motier"], description: "French general who played a key role in the Continental Army’s victory at Yorktown", image: "25.png" }
+    ];
+
+    const state = data.map(item => ({
+        ...item,
+        solvedName: false,
+        solvedDesc: false,
+        nameAttempts: 0,
+        descAttempts: 0,
+        points: 0,
+        bonusPoints: 0
+    }));
+
+    let activeCardIndex = null;
+
+    function levenshtein(s, t) {
+        if (!s.length) return t.length;
+        if (!t.length) return s.length;
+        const arr = [];
+        for (let i = 0; i <= t.length; i++) {
+            arr[i] = [i];
+            for (let j = 1; j <= s.length; j++) {
+                arr[i][j] = i === 0 ? j : Math.min(arr[i - 1][j] + 1, arr[i][j - 1] + 1, arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1));
+            }
+        }
+        return arr[t.length][s.length];
+    }
+
+    function showMessage(text) {
+        const box = document.getElementById('msg-box');
+        box.innerText = text;
+        box.style.display = 'block';
+        setTimeout(() => box.style.display = 'none', 3000);
+    }
+
+    function render() {
+        const gallery = document.getElementById('gallery');
+        gallery.innerHTML = '';
+
+        state.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'stamp-card';
+            
+            card.innerHTML = `
+                <div class="stamp-img-container">
+                    <img src="${item.image}" alt="Portrait">
+                </div>
+                <div class="stamp-info">
+                    <div class="name-slot">${item.solvedName ? item.name : ''}</div>
+                    <div class="desc-slot">${item.solvedDesc ? item.description : ''}</div>
+                </div>
+                <div class="card-actions">
+                    ${!item.solvedName ? `
+                        <input type="text" placeholder="Name?" id="input-${index}" onkeypress="if(event.key==='Enter') checkRecall(${index})">
+                        <button class="btn-guess" onclick="checkRecall(${index})">Guess</button>
+                        <button class="btn-bank" onclick="openBank('name', ${index})">Name Bank (20)</button>
+                    ` : ""}
+                    ${item.solvedName && !item.solvedDesc ? `
+                        <button class="btn-desc" onclick="openBank('desc', ${index})">Match Bio (+10)</button>
+                        <button class="btn-bank" onclick="requestAssistance(${index})" style="background:#777">Reveal Bio (0)</button>
+                    ` : ""}
+                </div>
+            `;
+            gallery.appendChild(card);
+        });
+
+        const totalScore = state.reduce((acc, curr) => acc + curr.points + curr.bonusPoints, 0);
+        document.getElementById('current-score').innerText = totalScore;
+    }
+
+    function checkRecall(index) {
+        const input = document.getElementById(`input-${index}`).value.trim().toLowerCase();
+        if (!input) return;
+        const target = state[index];
+        const isMatch = [target.name, ...target.aliases].some(a => {
+            const d = levenshtein(input, a.toLowerCase());
+            return d <= 1 || (a.length > 5 && d <= 2);
+        });
+
+        if (isMatch) {
+            target.points = Math.max(20, 30 - (target.nameAttempts * 2));
+            target.solvedName = true;
+            showMessage(`Correct! +${target.points} pts`);
+            render();
+        } else {
+            target.nameAttempts++;
+            showMessage("Incorrect. -2 pts for next try.");
+            document.getElementById(`input-${index}`).value = '';
+        }
+    }
+
+    function openBank(type, index) {
+        activeCardIndex = index;
+        const overlay = document.getElementById('modal-overlay');
+        const list = document.getElementById('bank-list');
+        const title = document.getElementById('modal-title');
+        const instr = document.getElementById('modal-instr');
+        overlay.style.display = 'flex';
+        list.innerHTML = '';
+        
+        if (type === 'name') {
+            title.innerText = "Name Bank";
+            instr.innerText = "Select name for 20 points.";
+            state.filter(s => !s.solvedName).map(s => s.name).sort().forEach(n => {
+                const el = document.createElement('div');
+                el.className = 'bank-item'; el.innerText = n;
+                el.onclick = () => {
+                    if (n === state[activeCardIndex].name) {
+                        state[activeCardIndex].solvedName = true;
+                        state[activeCardIndex].points = 20;
+                        closeModal(); render();
+                    } else showMessage("Incorrect choice.");
+                };
+                list.appendChild(el);
+            });
+        } else {
+            title.innerText = "Bio Bank";
+            instr.innerText = "Match the correct bio. (1st: 10pts, 2nd: 5pts)";
+            state.filter(s => !s.solvedDesc).map(s => s.description).sort(() => Math.random()-0.5).forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'bank-item'; el.innerText = d;
+                el.onclick = () => {
+                    if (d === state[activeCardIndex].description) {
+                        state[activeCardIndex].solvedDesc = true;
+                        state[activeCardIndex].bonusPoints = state[activeCardIndex].descAttempts === 0 ? 10 : 5;
+                        closeModal(); render();
+                    } else {
+                        state[activeCardIndex].descAttempts++;
+                        if (state[activeCardIndex].descAttempts >= 2) {
+                            state[activeCardIndex].solvedDesc = true;
+                            closeModal(); render();
+                        } else showMessage("Wrong! One try left for 5pts.");
+                    }
+                };
+                list.appendChild(el);
+            });
+        }
+    }
+
+    function requestAssistance(index) {
+        state[index].solvedDesc = true;
+        state[index].bonusPoints = 0;
+        render();
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+    document.getElementById('close-modal').onclick = closeModal;
+    window.onload = render;
+</script>
+</body>
+</html>
