@@ -110,7 +110,13 @@
             box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
             user-select: none;
             position: relative;
-            transition: outline 0.2s;
+            transition: all 0.3s ease;
+        }
+
+        .bank-item.expanded {
+            border: 1px solid var(--accent-blue);
+            background: #f9f9ff;
+            cursor: grab;
         }
 
         .bank-item.drag-over {
@@ -118,11 +124,14 @@
             background: #fff0f0;
         }
 
-        .bank-item .linked-icon {
-            float: right;
-            color: var(--accent-blue);
-            font-size: 0.7rem;
-            font-weight: bold;
+        .bank-item-bio {
+            font-size: 0.75rem;
+            color: #555;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dotted #ccc;
+            font-style: italic;
+            pointer-events: none;
         }
 
         .reveal-btn {
@@ -137,7 +146,6 @@
             margin: auto;
         }
 
-        /* Card Styling */
         .stamp-card {
             background: var(--card-bg);
             border: var(--border-style);
@@ -154,9 +162,7 @@
             background: #f0f8ff;
         }
 
-        /* Windowing: x=26, y=26 to 275, 313
-           Crop Width: 249, Height: 287
-        */
+        /* Precise Windowing: (26,26) to (275,313) */
         .stamp-img-container {
             width: 100%;
             aspect-ratio: 249 / 287; 
@@ -169,10 +175,10 @@
 
         .stamp-img-container img {
             position: absolute;
-            width: 120.88%; /* 301/249 */
+            width: 120.88%;
             height: auto;
-            left: -10.44%; /* -26/249 */
-            top: -9.06%; /* -26/287 */
+            left: -10.44%;
+            top: -9.06%;
             display: block;
         }
 
@@ -319,7 +325,7 @@
         points: 0,
         bonusPoints: 0,
         descAttempts: 0,
-        linkedBio: null // Bio description attached to this name in sidebar
+        linkedBio: null 
     }));
 
     let nameBankRevealed = false;
@@ -370,7 +376,7 @@
                 if (dragData.type === 'name') {
                     handleDropName(index, dragData.value, dragData.sourceIdx, dragData.linkedBio);
                 } else if (dragData.type === 'bio') {
-                    handleDropBioOnCard(index, dragData.value);
+                    handleDropBioOnCard(index, dragData.value, dragData.sourceIdx);
                 }
             };
 
@@ -399,22 +405,24 @@
             const scroll = document.getElementById('name-bank-scroll');
             state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, linked: s.linkedBio})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
                 const el = document.createElement('div');
-                el.className = 'bank-item';
-                el.innerHTML = obj.name + (obj.linked ? ' <span class="linked-icon">📜</span>' : '');
+                el.className = 'bank-item' + (obj.linked ? ' expanded' : '');
+                el.innerHTML = `
+                    <div style="font-weight:bold;">${obj.name}</div>
+                    ${obj.linked ? `<div class="bank-item-bio">${obj.linked}</div>` : ''}
+                `;
                 el.draggable = true;
                 
-                // Allow dropping Bio onto Name
                 el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
                 el.ondragleave = () => { el.classList.remove('drag-over'); };
                 el.ondrop = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     el.classList.remove('drag-over');
-                    const dragData = JSON.parse(e.dataTransfer.getData("application/quiz"));
+                    const rawData = e.dataTransfer.getData("application/quiz");
+                    if (!rawData) return;
+                    const dragData = JSON.parse(rawData);
                     if (dragData.type === 'bio') {
-                        state[obj.idx].linkedBio = dragData.value;
-                        showMessage(`Bio attached to ${obj.name}`);
-                        render();
+                        handleDropBioOnName(obj.idx, dragData.value, dragData.sourceIdx);
                     }
                 };
 
@@ -438,13 +446,17 @@
 
         const bioScroll = document.getElementById('bio-bank-scroll');
         bioScroll.innerHTML = '';
-        state.filter(s => !s.solvedDesc).map(s => s.description).sort().forEach(desc => {
+        state.filter(s => !s.solvedDesc).map(s => ({desc: s.description, idx: s.originalIndex})).sort((a,b) => a.desc.localeCompare(b.desc)).forEach(obj => {
             const el = document.createElement('div');
             el.className = 'bank-item';
-            el.innerText = desc;
+            el.innerText = obj.desc;
             el.draggable = true;
             el.ondragstart = (e) => {
-                e.dataTransfer.setData("application/quiz", JSON.stringify({type: 'bio', value: desc}));
+                e.dataTransfer.setData("application/quiz", JSON.stringify({
+                    type: 'bio', 
+                    value: obj.desc,
+                    sourceIdx: obj.idx
+                }));
             };
             bioScroll.appendChild(el);
         });
@@ -478,6 +490,33 @@
         }
     }
 
+    function handleDropBioOnName(nameIdx, bioText, bioOwnerIdx) {
+        const nameTarget = state[nameIdx];
+        if (nameTarget.linkedBio) return; 
+
+        if (bioText === nameTarget.description) {
+            nameTarget.linkedBio = bioText;
+            showMessage(`Bio attached!`);
+            render();
+        } else {
+            const bioOwner = state[bioOwnerIdx];
+            nameTarget.potentialPoints = Math.max(0, nameTarget.potentialPoints - 5);
+            bioOwner.potentialPoints = Math.max(0, bioOwner.potentialPoints - 5);
+            
+            let msg = `Incorrect bio match!`;
+            if (nameTarget.potentialPoints === 0) {
+                nameTarget.solvedName = true; nameTarget.points = 0;
+                msg += ` ${nameTarget.name} revealed.`;
+            }
+            if (bioOwner.potentialPoints === 0 && !bioOwner.solvedName) {
+                bioOwner.solvedName = true; bioOwner.points = 0;
+                msg += ` ${bioOwner.name} revealed.`;
+            }
+            showMessage(msg);
+            render();
+        }
+    }
+
     function handleDropName(targetIdx, name, sourceIdx, linkedBio) {
         const target = state[targetIdx];
         if (target.solvedName) return;
@@ -487,15 +526,9 @@
             target.points = Math.min(target.potentialPoints, 20); 
             showMessage(`Correct name match!`);
             
-            // If bio was attached, check it too
-            if (linkedBio) {
-                if (linkedBio === target.description) {
-                    target.solvedDesc = true;
-                    target.bonusPoints = 0; // Linked via helper
-                    showMessage(`Correct match! Name and bio populated.`);
-                } else {
-                    showMessage(`Correct name, but that bio belongs to someone else.`);
-                }
+            if (linkedBio && linkedBio === target.description) {
+                target.solvedDesc = true;
+                target.bonusPoints = 0; 
             }
             render();
         } else {
@@ -503,15 +536,13 @@
             target.potentialPoints = Math.max(0, target.potentialPoints - 5);
             source.potentialPoints = Math.max(0, source.potentialPoints - 5);
             
-            let msg = `Incorrect! ${name} is not this figure.`;
+            let msg = `Incorrect!`;
             if (target.potentialPoints === 0) {
-                target.solvedName = true;
-                target.points = 0;
-                msg += ` This figure revealed as ${target.name}.`;
+                target.solvedName = true; target.points = 0;
+                msg += ` Revealed as ${target.name}.`;
             }
             if (source.potentialPoints === 0 && !source.solvedName) {
-                source.solvedName = true;
-                source.points = 0;
+                source.solvedName = true; source.points = 0;
                 msg += ` ${source.name} revealed.`;
             }
             showMessage(msg);
@@ -519,7 +550,7 @@
         }
     }
 
-    function handleDropBioOnCard(targetIdx, desc) {
+    function handleDropBioOnCard(targetIdx, desc, bioOwnerIdx) {
         const target = state[targetIdx];
         if (target.solvedDesc) return;
 
@@ -529,15 +560,27 @@
             showMessage(`Correct bio match!`);
             render();
         } else {
+            const bioOwner = state[bioOwnerIdx];
+            target.potentialPoints = Math.max(0, target.potentialPoints - 5);
+            bioOwner.potentialPoints = Math.max(0, bioOwner.potentialPoints - 5);
             target.descAttempts++;
+
+            let msg = `Incorrect bio match!`;
+            if (target.potentialPoints === 0) {
+                target.solvedName = true; target.points = 0;
+                msg += ` ${target.name} revealed.`;
+            }
+            if (bioOwner.potentialPoints === 0 && !bioOwner.solvedName) {
+                bioOwner.solvedName = true; bioOwner.points = 0;
+                msg += ` ${bioOwner.name} revealed.`;
+            }
             if (target.descAttempts >= 2) {
                 target.solvedDesc = true;
                 target.bonusPoints = 0;
-                showMessage("Failed bio match twice. Revealed.");
-                render();
-            } else {
-                showMessage("Incorrect bio match.");
+                msg += " Bio revealed.";
             }
+            showMessage(msg);
+            render();
         }
     }
 
