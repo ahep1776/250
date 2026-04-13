@@ -12,6 +12,7 @@
             --accent-blue: #003366;
             --accent-red: #990000;
             --border-style: 1px solid #ccc;
+            --select-glow: 0 0 10px 3px rgba(0, 51, 102, 0.5);
         }
 
         body {
@@ -72,6 +73,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            z-index: 50;
         }
 
         .sidebar-section {
@@ -107,11 +109,18 @@
             border: 1px solid #bbb;
             border-radius: 3px;
             font-size: 0.85rem;
-            cursor: grab;
+            cursor: pointer;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
             user-select: none;
             position: relative;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+        }
+
+        .bank-item.selected {
+            box-shadow: var(--select-glow);
+            border-color: var(--accent-blue);
+            transform: scale(1.02);
+            background: #f0f4ff;
         }
 
         .bank-item.expanded {
@@ -155,6 +164,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             min-height: 340px;
             transition: outline 0.2s, background-color 0.2s;
+            cursor: pointer;
         }
 
         .stamp-card.drag-over {
@@ -290,15 +300,45 @@
             margin-top: 10px;
         }
 
-        @media (max-width: 1000px) {
-            .gallery-grid { grid-template-columns: repeat(3, 1fr); }
-            .sidebar { width: 220px; }
+        /* RESPONSIVE RE-LAYOUT
+           When too narrow for 5 columns, move banks to a fixed bottom drawer 
+        */
+        @media (max-width: 1150px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: 30vh; /* Fixed height for banks at bottom */
+                flex-direction: row; /* Side by side banks */
+                border-left: none;
+                border-top: 2px solid #b5b0a3;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            }
+            .sidebar-section {
+                border-right: 1px solid #b5b0a3;
+            }
+            .sidebar-section:last-child {
+                border-right: none;
+            }
+            .gallery-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
         }
 
-        @media (max-width: 700px) {
-            .main-layout { flex-direction: column; }
-            .sidebar { width: 100%; height: 350px; border-left: none; border-top: 2px solid #b5b0a3; }
-            .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+        /* Even tighter screens */
+        @media (max-width: 600px) {
+            .sidebar {
+                height: 40vh;
+                flex-direction: column; /* Stack banks if very narrow */
+            }
+            .sidebar-section {
+                border-right: none;
+                border-bottom: 1px solid #b5b0a3;
+            }
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
@@ -310,10 +350,9 @@
         <p>Celebrate our 250th anniversary by identifying the key figures of the American Revolution featured on the new 2026 commemorative stamps.</p>
         <p><strong>Goal:</strong> Match the correct Names and Biographies to each portrait.</p>
         <ul>
-            <li><strong>Free Recall:</strong> Type names in the boxes for maximum points. If you make too many errors, the field will lock.</li>
-            <li><strong>The Banks:</strong> You can reveal the <strong>Name Bank</strong> at any time to match names via drag-and-drop, though for fewer points.</li>
-            <li><strong>Biographies:</strong> Drag biographies from the right onto either a name in the list or a picture in the gallery.</li>
-            <li><strong>Penalties:</strong> Incorrect matches deduct points. Repeated errors on an item will cause the answer to reveal automatically.</li>
+            <li><strong>Free Recall:</strong> Type names in the boxes for maximum points.</li>
+            <li><strong>The Banks:</strong> Tap a name or bio to select it, then tap a destination to match it. (Desktop users can also drag and drop).</li>
+            <li><strong>Penalties:</strong> Incorrect matches deduct points from potential scores. Repeated errors cause the answer to reveal automatically.</li>
         </ul>
         <button onclick="closeIntro()">Start Game</button>
     </div>
@@ -374,7 +413,6 @@
         { id: "25", name: "Marquis de Lafayette", "aliases": ["Lafayette", "de Lafayette", "Gilbert du Motier"], "description": "French general who played a key role in the Continental Army’s victory at Yorktown", "image": "25.png" }
     ];
 
-    // Initialize random orders once
     const galleryOrder = [...Array(rawData.length).keys()].sort(() => Math.random() - 0.5);
     const bioOrder = [...Array(rawData.length).keys()].sort(() => Math.random() - 0.5);
     
@@ -392,6 +430,7 @@
     }));
 
     let nameBankRevealed = false;
+    let selectedData = null; 
 
     function closeIntro() {
         document.getElementById('intro-modal').style.display = 'none';
@@ -442,6 +481,27 @@
         if (newGameArea) newGameArea.scrollTop = scrollPositions.game;
     }
 
+    function handleBankClick(type, value, sourceIdx) {
+        if (selectedData && selectedData.type === type && selectedData.value === value) {
+            selectedData = null; 
+        } else {
+            selectedData = { type, value, sourceIdx };
+        }
+        render();
+    }
+
+    function handleGalleryClick(itemIdx) {
+        if (!selectedData) return;
+
+        if (selectedData.type === 'name') {
+            handleDropName(itemIdx, selectedData.value, selectedData.sourceIdx);
+        } else if (selectedData.type === 'bio') {
+            handleDropBioOnTarget(itemIdx, selectedData.value, selectedData.sourceIdx, 'picture');
+        }
+        selectedData = null;
+        render();
+    }
+
     function renderGallery() {
         const gallery = document.getElementById('gallery');
         gallery.innerHTML = '';
@@ -451,20 +511,20 @@
             const card = document.createElement('div');
             card.className = 'stamp-card';
             
+            card.onclick = (e) => {
+                if (e.target.tagName !== 'INPUT') handleGalleryClick(itemIdx);
+            };
+
             card.ondragover = (e) => { e.preventDefault(); card.classList.add('drag-over'); };
             card.ondragleave = () => { card.classList.remove('drag-over'); };
             card.ondrop = (e) => {
                 e.preventDefault();
                 card.classList.remove('drag-over');
-                const rawData = e.dataTransfer.getData("application/quiz");
-                if (!rawData) return;
-                const dragData = JSON.parse(rawData);
-                
-                if (dragData.type === 'name') {
-                    handleDropName(itemIdx, dragData.value, dragData.sourceIdx);
-                } else if (dragData.type === 'bio') {
-                    handleDropBioOnTarget(itemIdx, dragData.value, dragData.sourceIdx, 'picture');
-                }
+                const rawDataStr = e.dataTransfer.getData("application/quiz");
+                if (!rawDataStr) return;
+                const dragData = JSON.parse(rawDataStr);
+                if (dragData.type === 'name') handleDropName(itemIdx, dragData.value, dragData.sourceIdx);
+                else if (dragData.type === 'bio') handleDropBioOnTarget(itemIdx, dragData.value, dragData.sourceIdx, 'picture');
             };
 
             const showBio = item.descOnPicture || (item.solvedName && item.descOnName);
@@ -502,21 +562,32 @@
                  .sort((a,b) => a.name.localeCompare(b.name))
                  .forEach(obj => {
                     const el = document.createElement('div');
-                    el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '');
+                    const isSelected = selectedData && selectedData.type === 'name' && selectedData.sourceIdx === obj.idx;
+                    el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '') + (isSelected ? ' selected' : '');
                     el.innerHTML = `
                         <div style="font-weight:bold;">${obj.name}</div>
                         ${obj.bioSolved ? `<div class="bank-item-bio">${obj.bio}</div>` : ''}
                     `;
-                    el.draggable = true;
                     
+                    el.draggable = true;
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        if (selectedData && selectedData.type === 'bio') {
+                            handleDropBioOnTarget(obj.idx, selectedData.value, selectedData.sourceIdx, 'name');
+                            selectedData = null;
+                        } else {
+                            handleBankClick('name', obj.name, obj.idx);
+                        }
+                    };
+
                     el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
                     el.ondragleave = () => { el.classList.remove('drag-over'); };
                     el.ondrop = (e) => {
                         e.preventDefault(); e.stopPropagation();
                         el.classList.remove('drag-over');
-                        const rawData = e.dataTransfer.getData("application/quiz");
-                        if (!rawData) return;
-                        const dragData = JSON.parse(rawData);
+                        const rawDataStr = e.dataTransfer.getData("application/quiz");
+                        if (!rawDataStr) return;
+                        const dragData = JSON.parse(rawDataStr);
                         if (dragData.type === 'bio') {
                             handleDropBioOnTarget(obj.idx, dragData.value, dragData.sourceIdx, 'name');
                         }
@@ -530,11 +601,14 @@
                     scroll.appendChild(el);
             });
         } else {
-            document.getElementById('reveal-names-btn').onclick = () => { 
-                nameBankRevealed = true; 
-                state.forEach(s => { if(!s.solvedName) s.namePotential = Math.min(s.namePotential, 20); });
-                render(); 
-            };
+            const btn = document.getElementById('reveal-names-btn');
+            if (btn) {
+                btn.onclick = () => { 
+                    nameBankRevealed = true; 
+                    state.forEach(s => { if(!s.solvedName) s.namePotential = Math.min(s.namePotential, 20); });
+                    render(); 
+                };
+            }
         }
 
         const bioScroll = document.getElementById('bio-bank-scroll');
@@ -544,9 +618,14 @@
             const item = state[idx];
             if (!item.descOnPicture && !item.descOnName) {
                 const el = document.createElement('div');
-                el.className = 'bank-item';
+                const isSelected = selectedData && selectedData.type === 'bio' && selectedData.sourceIdx === item.originalIndex;
+                el.className = 'bank-item' + (isSelected ? ' selected' : '');
                 el.innerText = item.description;
                 el.draggable = true;
+                el.onclick = (e) => {
+                    e.stopPropagation();
+                    handleBankClick('bio', item.description, item.originalIndex);
+                };
                 el.ondragstart = (e) => {
                     e.dataTransfer.setData("application/quiz", JSON.stringify({
                         type: 'bio', value: item.description, sourceIdx: item.originalIndex
@@ -581,11 +660,8 @@
             }
             inputField.value = '';
             render();
-            // Re-focus the input after render if it's still available and enabled
             const nextInput = document.getElementById(`input-${index}`);
-            if (nextInput && !nextInput.disabled) {
-                nextInput.focus();
-            }
+            if (nextInput && !nextInput.disabled) nextInput.focus();
         }
     }
 
