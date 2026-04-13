@@ -99,7 +99,6 @@
             background: rgba(255,255,255,0.3);
             border-radius: 4px;
             padding: 8px;
-            /* Removed scroll-behavior: smooth to prevent jank during re-renders */
         }
 
         .bank-item {
@@ -484,14 +483,12 @@
         const newBioBankScroll = document.getElementById('bio-bank-scroll');
         const newGameArea = document.querySelector('.game-area');
 
-        // Restore scroll positions instantly (no animation)
         if (newNameBankScroll) newNameBankScroll.scrollTop = scrollPositions.name;
         if (newBioBankScroll) newBioBankScroll.scrollTop = scrollPositions.bio;
         if (newGameArea) newGameArea.scrollTop = scrollPositions.game;
     }
 
     function updateSelectionUI() {
-        // Light-weight class update to avoid innerHTML resets and scroll jank
         document.querySelectorAll('.bank-item').forEach(el => {
             const type = el.getAttribute('data-type');
             const sourceIdx = parseInt(el.getAttribute('data-idx'));
@@ -519,7 +516,7 @@
             handleDropBioOnTarget(itemIdx, selectedData.value, selectedData.sourceIdx, 'picture');
         }
         selectedData = null;
-        render(); // Full render required on match/penalty to update portraits/reveals
+        render(); 
     }
 
     function renderGallery() {
@@ -559,11 +556,14 @@
                 </div>
                 <div class="card-actions">
                     ${!item.solvedName && !nameBankRevealed ? `
-                        <input type="text" 
-                               placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked. Reveal name bank.'}" 
-                               id="input-${itemIdx}" 
-                               ${item.namePotential <= 20 ? 'disabled' : ''}
-                               onkeydown="if(event.key==='Enter' || event.key==='Tab') { event.preventDefault(); checkRecall(${itemIdx}); }">
+                        <form onsubmit="event.preventDefault(); checkRecall(${itemIdx}); return false;" style="width:100%; display:contents;">
+                            <input type="text" 
+                                   placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked. Reveal name bank.'}" 
+                                   id="input-${itemIdx}" 
+                                   ${item.namePotential <= 20 ? 'disabled' : ''}
+                                   enterkeyhint="done"
+                                   onkeydown="if(event.key==='Tab') { event.preventDefault(); checkRecall(${itemIdx}); }">
+                        </form>
                     ` : ""}
                 </div>
             `;
