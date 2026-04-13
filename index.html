@@ -116,7 +116,6 @@
         .bank-item.expanded {
             border: 1px solid var(--accent-blue);
             background: #f9f9ff;
-            cursor: grab;
         }
 
         .bank-item.drag-over {
@@ -162,7 +161,6 @@
             background: #f0f8ff;
         }
 
-        /* Precise Windowing: (26,26) to (275,313) */
         .stamp-img-container {
             width: 100%;
             aspect-ratio: 249 / 287; 
@@ -321,11 +319,10 @@
         originalIndex: index,
         solvedName: false,
         solvedDesc: false,
-        potentialPoints: 30,
+        namePotential: 30, // Score pool for name-picture match
+        bioPotential: 10,  // Score pool for bio match
         points: 0,
-        bonusPoints: 0,
-        descAttempts: 0,
-        linkedBio: null 
+        bonusPoints: 0
     }));
 
     let nameBankRevealed = false;
@@ -374,9 +371,9 @@
                 const dragData = JSON.parse(rawData);
                 
                 if (dragData.type === 'name') {
-                    handleDropName(index, dragData.value, dragData.sourceIdx, dragData.linkedBio);
+                    handleDropName(index, dragData.value, dragData.sourceIdx);
                 } else if (dragData.type === 'bio') {
-                    handleDropBioOnCard(index, dragData.value, dragData.sourceIdx);
+                    handleDropBioOnTarget(index, dragData.value, dragData.sourceIdx, 'picture');
                 }
             };
 
@@ -403,12 +400,12 @@
         if (nameBankRevealed) {
             nameContent.innerHTML = '<div id="name-bank-scroll" class="bank-scroll"></div>';
             const scroll = document.getElementById('name-bank-scroll');
-            state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, linked: s.linkedBio})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
+            state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, bioSolved: s.solvedDesc, bio: s.description})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
                 const el = document.createElement('div');
-                el.className = 'bank-item' + (obj.linked ? ' expanded' : '');
+                el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '');
                 el.innerHTML = `
                     <div style="font-weight:bold;">${obj.name}</div>
-                    ${obj.linked ? `<div class="bank-item-bio">${obj.linked}</div>` : ''}
+                    ${obj.bioSolved ? `<div class="bank-item-bio">${obj.bio}</div>` : ''}
                 `;
                 el.draggable = true;
                 
@@ -418,11 +415,9 @@
                     e.preventDefault();
                     e.stopPropagation();
                     el.classList.remove('drag-over');
-                    const rawData = e.dataTransfer.getData("application/quiz");
-                    if (!rawData) return;
-                    const dragData = JSON.parse(rawData);
+                    const dragData = JSON.parse(e.dataTransfer.getData("application/quiz"));
                     if (dragData.type === 'bio') {
-                        handleDropBioOnName(obj.idx, dragData.value, dragData.sourceIdx);
+                        handleDropBioOnTarget(obj.idx, dragData.value, dragData.sourceIdx, 'name');
                     }
                 };
 
@@ -430,8 +425,7 @@
                     e.dataTransfer.setData("application/quiz", JSON.stringify({
                         type: 'name', 
                         value: obj.name, 
-                        sourceIdx: obj.idx,
-                        linkedBio: obj.linked
+                        sourceIdx: obj.idx
                     }));
                 };
                 scroll.appendChild(el);
@@ -439,7 +433,7 @@
         } else {
             document.getElementById('reveal-names-btn').onclick = () => { 
                 nameBankRevealed = true; 
-                state.forEach(s => { if(!s.solvedName) s.potentialPoints = Math.min(s.potentialPoints, 20); });
+                state.forEach(s => { if(!s.solvedName) s.namePotential = Math.min(s.namePotential, 20); });
                 render(); 
             };
         }
@@ -472,13 +466,13 @@
         });
 
         if (isMatch) {
-            target.points = target.potentialPoints;
+            target.points = target.namePotential;
             target.solvedName = true;
             showMessage(`Correct!`);
             render();
         } else {
-            target.potentialPoints = Math.max(0, target.potentialPoints - 2);
-            if (target.potentialPoints === 0) {
+            target.namePotential = Math.max(0, target.namePotential - 2);
+            if (target.namePotential === 0) {
                 target.solvedName = true;
                 target.points = 0;
                 showMessage(`${target.name} revealed.`);
@@ -490,58 +484,26 @@
         }
     }
 
-    function handleDropBioOnName(nameIdx, bioText, bioOwnerIdx) {
-        const nameTarget = state[nameIdx];
-        if (nameTarget.linkedBio) return; 
-
-        if (bioText === nameTarget.description) {
-            nameTarget.linkedBio = bioText;
-            showMessage(`Bio attached!`);
-            render();
-        } else {
-            const bioOwner = state[bioOwnerIdx];
-            nameTarget.potentialPoints = Math.max(0, nameTarget.potentialPoints - 5);
-            bioOwner.potentialPoints = Math.max(0, bioOwner.potentialPoints - 5);
-            
-            let msg = `Incorrect bio match!`;
-            if (nameTarget.potentialPoints === 0) {
-                nameTarget.solvedName = true; nameTarget.points = 0;
-                msg += ` ${nameTarget.name} revealed.`;
-            }
-            if (bioOwner.potentialPoints === 0 && !bioOwner.solvedName) {
-                bioOwner.solvedName = true; bioOwner.points = 0;
-                msg += ` ${bioOwner.name} revealed.`;
-            }
-            showMessage(msg);
-            render();
-        }
-    }
-
-    function handleDropName(targetIdx, name, sourceIdx, linkedBio) {
+    function handleDropName(targetIdx, name, sourceIdx) {
         const target = state[targetIdx];
         if (target.solvedName) return;
 
         if (name === target.name) {
             target.solvedName = true;
-            target.points = Math.min(target.potentialPoints, 20); 
-            showMessage(`Correct name match!`);
-            
-            if (linkedBio && linkedBio === target.description) {
-                target.solvedDesc = true;
-                target.bonusPoints = 0; 
-            }
+            target.points = Math.min(target.namePotential, 20); 
+            showMessage(`Correct match!`);
             render();
         } else {
             const source = state[sourceIdx];
-            target.potentialPoints = Math.max(0, target.potentialPoints - 5);
-            source.potentialPoints = Math.max(0, source.potentialPoints - 5);
+            target.namePotential = Math.max(0, target.namePotential - 5);
+            source.namePotential = Math.max(0, source.namePotential - 5);
             
             let msg = `Incorrect!`;
-            if (target.potentialPoints === 0) {
+            if (target.namePotential === 0) {
                 target.solvedName = true; target.points = 0;
                 msg += ` Revealed as ${target.name}.`;
             }
-            if (source.potentialPoints === 0 && !source.solvedName) {
+            if (source.namePotential === 0 && !source.solvedName) {
                 source.solvedName = true; source.points = 0;
                 msg += ` ${source.name} revealed.`;
             }
@@ -550,34 +512,34 @@
         }
     }
 
-    function handleDropBioOnCard(targetIdx, desc, bioOwnerIdx) {
+    function handleDropBioOnTarget(targetIdx, bioText, bioOwnerIdx, targetType) {
         const target = state[targetIdx];
-        if (target.solvedDesc) return;
+        if (target.solvedDesc) return; 
 
-        if (desc === target.description) {
+        if (bioText === target.description) {
             target.solvedDesc = true;
-            target.bonusPoints = target.descAttempts === 0 ? 10 : 5;
+            target.bonusPoints = target.bioPotential;
             showMessage(`Correct bio match!`);
             render();
         } else {
+            // Bio penalty logic: -5 to both
             const bioOwner = state[bioOwnerIdx];
-            target.potentialPoints = Math.max(0, target.potentialPoints - 5);
-            bioOwner.potentialPoints = Math.max(0, bioOwner.potentialPoints - 5);
-            target.descAttempts++;
-
+            target.bioPotential = Math.max(0, target.bioPotential - 5);
+            bioOwner.bioPotential = Math.max(0, bioOwner.bioPotential - 5);
+            
             let msg = `Incorrect bio match!`;
-            if (target.potentialPoints === 0) {
-                target.solvedName = true; target.points = 0;
-                msg += ` ${target.name} revealed.`;
-            }
-            if (bioOwner.potentialPoints === 0 && !bioOwner.solvedName) {
-                bioOwner.solvedName = true; bioOwner.points = 0;
-                msg += ` ${bioOwner.name} revealed.`;
-            }
-            if (target.descAttempts >= 2) {
+            
+            // If targets hit zero, reveal THEIR specific bios on whatever entity was interacted with
+            if (target.bioPotential === 0) {
                 target.solvedDesc = true;
                 target.bonusPoints = 0;
-                msg += " Bio revealed.";
+                // It stays "glued" where it is
+                msg += ` Bio revealed for ${target.name}.`;
+            }
+            if (bioOwner.bioPotential === 0 && !bioOwner.solvedDesc) {
+                bioOwner.solvedDesc = true;
+                bioOwner.bonusPoints = 0;
+                msg += ` Bio revealed for ${bioOwner.name}.`;
             }
             showMessage(msg);
             render();
