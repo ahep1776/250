@@ -305,22 +305,24 @@
         { id: "16", name: "Mercy Otis Warren", aliases: ["Warren", "M. Warren", "M. O. Warren"], description: "Poet, playwright, and historian whose works chronicled the Revolution", image: "16.png" },
         { id: "17", name: "John Adams", aliases: ["Adams", "J. Adams"], description: "Delegate to the Continental Congress, signer of the Declaration of Independence, and second U.S. president", image: "17.png" },
         { id: "18", name: "James Madison", aliases: ["Madison", "J. Madison"], description: "Key architect of the Constitution, co-author of The Federalist, and fourth U.S. president", image: "18.png" },
-        { id: "19", name: "Esther DeBerdt Reed", aliases: ["Reed", "Esther Reed", "E. Reed"], description: "Author of “Sentiments of an American Woman,” which helped raise funds for the Continental Army", image: "19.png" },
-        { id: "20", name: "John Dickinson", aliases: ["Dickinson", "J. Dickinson"], description: "“Penman of the Revolution,” whose writings articulated America’s revolutionary ideals", image: "20.png" },
-        { id: "21", name: "Baron von Steuben", aliases: ["Steuben", "von Steuben"], description: "Prussian military officer who helped professionalize and transform the Continental Army into a formidable force", image: "21.png" },
-        { id: "22", name: "Deborah Sampson", aliases: ["Sampson", "D. Sampson"], description: "Disguised as a man to serve in the Continental Army and only woman of the era to earn a military pension", image: "22.png" },
-        { id: "23", name: "Agwalondongwas", aliases: ["Good Peter", "Agwalondongwas"], description: "Oneida leader called “Good Peter,” who supported American forces and worked for his people’s future", image: "23.png" },
-        { id: "24", name: "Cornplanter", aliases: ["Cornplanter"], description: "Seneca war chief and peace negotiator between Native nations and the U.S. after the Revolution", image: "24.png" },
-        { id: "25", name: "Marquis de Lafayette", aliases: ["Lafayette", "de Lafayette", "Gilbert du Motier"], description: "French general who played a key role in the Continental Army’s victory at Yorktown", image: "25.png" }
+        { id: "19", "name": "Esther DeBerdt Reed", "aliases": ["Reed", "Esther Reed", "E. Reed"], "description": "Author of “Sentiments of an American Woman,” which helped raise funds for the Continental Army", "image": "19.png" },
+        { id: "20", "name": "John Dickinson", "aliases": ["Dickinson", "J. Dickinson"], "description": "“Penman of the Revolution,” whose writings articulated America’s revolutionary ideals", "image": "20.png" },
+        { id: "21", "name": "Baron von Steuben", "aliases": ["Steuben", "von Steuben"], "description": "Prussian military officer who helped professionalize and transform the Continental Army into a formidable force", "image": "21.png" },
+        { id: "22", "name": "Deborah Sampson", "aliases": ["Sampson", "D. Sampson"], "description": "Disguised as a man to serve in the Continental Army and only woman of the era to earn a military pension", "image": "22.png" },
+        { id: "23", "name": "Agwalondongwas", "aliases": ["Good Peter", "Agwalondongwas"], "description": "Oneida leader called “Good Peter,” who supported American forces and worked for his people’s future", "image": "23.png" },
+        { id: "24", "name": "Cornplanter", "aliases": ["Cornplanter"], "description": "Seneca war chief and peace negotiator between Native nations and the U.S. after the Revolution", "image": "24.png" },
+        { id: "25", "name": "Marquis de Lafayette", "aliases": ["Lafayette", "de Lafayette", "Gilbert du Motier"], "description": "French general who played a key role in the Continental Army’s victory at Yorktown", "image": "25.png" }
     ];
 
     const state = data.map((item, index) => ({
         ...item,
         originalIndex: index,
         solvedName: false,
-        solvedDesc: false,
-        namePotential: 30, // Score pool for name-picture match
-        bioPotential: 10,  // Score pool for bio match
+        solvedDesc: false, // Global completion status
+        descOnPicture: false, // Specifically attached to gallery card
+        descOnName: false,    // Specifically attached to sidebar name
+        namePotential: 30,
+        bioPotential: 10,
         points: 0,
         bonusPoints: 0
     }));
@@ -377,13 +379,16 @@
                 }
             };
 
+            // Show bio on card if explicitly attached to picture OR name/picture are matched and bio was solved on name
+            const showBio = item.descOnPicture || (item.solvedName && item.descOnName);
+
             card.innerHTML = `
                 <div class="stamp-img-container">
                     <img src="${item.image}" alt="Portrait" draggable="false">
                 </div>
                 <div class="stamp-info">
                     <div class="name-slot">${item.solvedName ? item.name : ''}</div>
-                    <div class="desc-slot">${item.solvedDesc ? item.description : ''}</div>
+                    <div class="desc-slot">${showBio ? item.description : ''}</div>
                 </div>
                 <div class="card-actions">
                     ${!item.solvedName ? `
@@ -400,7 +405,7 @@
         if (nameBankRevealed) {
             nameContent.innerHTML = '<div id="name-bank-scroll" class="bank-scroll"></div>';
             const scroll = document.getElementById('name-bank-scroll');
-            state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, bioSolved: s.solvedDesc, bio: s.description})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
+            state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, bioSolved: s.descOnName, bio: s.description})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
                 const el = document.createElement('div');
                 el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '');
                 el.innerHTML = `
@@ -440,7 +445,8 @@
 
         const bioScroll = document.getElementById('bio-bank-scroll');
         bioScroll.innerHTML = '';
-        state.filter(s => !s.solvedDesc).map(s => ({desc: s.description, idx: s.originalIndex})).sort((a,b) => a.desc.localeCompare(b.desc)).forEach(obj => {
+        // Bio only appears in bank if it hasn't been correctly glued anywhere (neither picture nor name)
+        state.filter(s => !s.descOnPicture && !s.descOnName).map(s => ({desc: s.description, idx: s.originalIndex})).sort((a,b) => a.desc.localeCompare(b.desc)).forEach(obj => {
             const el = document.createElement('div');
             el.className = 'bank-item';
             el.innerText = obj.desc;
@@ -513,32 +519,41 @@
     }
 
     function handleDropBioOnTarget(targetIdx, bioText, bioOwnerIdx, targetType) {
-        const target = state[targetIdx];
-        if (target.solvedDesc) return; 
+        const targetEntity = state[targetIdx];
+        const bioOwner = state[bioOwnerIdx];
 
-        if (bioText === target.description) {
-            target.solvedDesc = true;
-            target.bonusPoints = target.bioPotential;
+        // Is the bio being dropped on its correct target?
+        if (bioText === targetEntity.description) {
+            if (targetType === 'picture') {
+                targetEntity.descOnPicture = true;
+            } else {
+                targetEntity.descOnName = true;
+            }
+            targetEntity.solvedDesc = true;
+            targetEntity.bonusPoints = targetEntity.bioPotential;
             showMessage(`Correct bio match!`);
             render();
         } else {
-            // Bio penalty logic: -5 to both
-            const bioOwner = state[bioOwnerIdx];
-            target.bioPotential = Math.max(0, target.bioPotential - 5);
+            // Bio penalty logic: -5 to bio owner and -5 to target figure's bio pool
+            targetEntity.bioPotential = Math.max(0, targetEntity.bioPotential - 5);
             bioOwner.bioPotential = Math.max(0, bioOwner.bioPotential - 5);
             
             let msg = `Incorrect bio match!`;
             
-            // If targets hit zero, reveal THEIR specific bios on whatever entity was interacted with
-            if (target.bioPotential === 0) {
-                target.solvedDesc = true;
-                target.bonusPoints = 0;
-                // It stays "glued" where it is
-                msg += ` Bio revealed for ${target.name}.`;
+            // Handle exhaustion and reveal based on target type
+            if (targetEntity.bioPotential === 0 && !targetEntity.solvedDesc) {
+                targetEntity.solvedDesc = true;
+                targetEntity.bonusPoints = 0;
+                if (targetType === 'picture') targetEntity.descOnPicture = true;
+                else targetEntity.descOnName = true;
+                msg += ` Bio revealed for ${targetEntity.name}.`;
             }
             if (bioOwner.bioPotential === 0 && !bioOwner.solvedDesc) {
                 bioOwner.solvedDesc = true;
                 bioOwner.bonusPoints = 0;
+                // Since this happened while dragging the bio, we reveal it on the "owner's" name (sidebar)
+                // as a default "un-matched" reveal location to avoid card-spoiling.
+                bioOwner.descOnName = true; 
                 msg += ` Bio revealed for ${bioOwner.name}.`;
             }
             showMessage(msg);
