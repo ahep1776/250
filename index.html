@@ -152,7 +152,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            min-height: 360px;
+            min-height: 340px;
             transition: outline 0.2s, background-color 0.2s;
         }
 
@@ -227,6 +227,13 @@
             font-size: 0.85rem;
         }
 
+        input[type="text"]:disabled {
+            background-color: #f0f0f0;
+            border-color: #bbb;
+            cursor: not-allowed;
+            color: #888;
+        }
+
         #msg-box {
             position: fixed;
             bottom: 20px;
@@ -245,6 +252,44 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
+        /* Overlay Modals */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--bg-color);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+
+        .modal h2 { margin-top: 0; color: var(--accent-blue); }
+        .modal p { line-height: 1.5; margin: 15px 0; }
+        .modal button {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+
         @media (max-width: 1000px) {
             .gallery-grid { grid-template-columns: repeat(3, 1fr); }
             .sidebar { width: 220px; }
@@ -258,6 +303,21 @@
     </style>
 </head>
 <body>
+
+<div id="intro-modal" class="overlay">
+    <div class="modal">
+        <h2>America 250: Revolution Quiz</h2>
+        <p>Celebrate our 250th anniversary by identifying the key figures of the American Revolution featured on the new 2026 commemorative stamps.</p>
+        <p><strong>Goal:</strong> Match the correct Names and Biographies to each portrait.</p>
+        <ul>
+            <li><strong>Free Recall:</strong> Type names in the boxes for maximum points. If you make too many errors, the field will lock.</li>
+            <li><strong>The Banks:</strong> You can reveal the <strong>Name Bank</strong> at any time to match names via drag-and-drop, though for fewer points.</li>
+            <li><strong>Biographies:</strong> Drag biographies from the right onto either a name in the list or a picture in the gallery.</li>
+            <li><strong>Penalties:</strong> Incorrect matches deduct points from potential scores. Repeated errors on an item will cause the answer to reveal automatically.</li>
+        </ul>
+        <button onclick="closeIntro()">Start Game</button>
+    </div>
+</div>
 
 <header>
     <h1>America 250: Figures of the Revolution</h1>
@@ -273,11 +333,11 @@
         <div class="sidebar-section" id="name-bank-section">
             <h2>Name Bank</h2>
             <div id="name-bank-content" style="height:100%; display:flex;">
-                <button class="reveal-btn" id="reveal-names-btn">REVEAL NAMES<br>(Active Recall Bonus Ends)</button>
+                <button class="reveal-btn" id="reveal-names-btn">REVEAL NAMES<br>(Awarded points will decrease)</button>
             </div>
         </div>
         <div class="sidebar-section">
-            <h2>Bio Bank</h2>
+            <h2>Biographies</h2>
             <div id="bio-bank-scroll" class="bank-scroll"></div>
         </div>
     </div>
@@ -286,7 +346,7 @@
 <div id="msg-box"></div>
 
 <script>
-    const data = [
+    const rawData = [
         { id: "01", name: "Paul Revere", aliases: ["Revere", "P. Revere"], description: "Silversmith and artist who famously warned of the British advance on Lexington and Concord", image: "01.png" },
         { id: "02", name: "John Jay", aliases: ["Jay", "J. Jay"], description: "Skilled diplomat who helped negotiate the Treaty of Paris, securing U.S. independence", image: "02.png" },
         { id: "03", name: "Lemuel Haynes", aliases: ["Haynes", "L. Haynes"], description: "Military veteran and ordained minister who condemned African American enslavement", image: "03.png" },
@@ -314,13 +374,16 @@
         { id: "25", "name": "Marquis de Lafayette", "aliases": ["Lafayette", "de Lafayette", "Gilbert du Motier"], "description": "French general who played a key role in the Continental Army’s victory at Yorktown", "image": "25.png" }
     ];
 
-    const state = data.map((item, index) => ({
+    // (1) Randomize pictures on load
+    const galleryOrder = [...Array(rawData.length).keys()].sort(() => Math.random() - 0.5);
+    
+    const state = rawData.map((item, index) => ({
         ...item,
         originalIndex: index,
         solvedName: false,
-        solvedDesc: false, // Global completion status
-        descOnPicture: false, // Specifically attached to gallery card
-        descOnName: false,    // Specifically attached to sidebar name
+        solvedDesc: false, 
+        descOnPicture: false, 
+        descOnName: false,    
         namePotential: 30,
         bioPotential: 10,
         points: 0,
@@ -328,6 +391,10 @@
     }));
 
     let nameBankRevealed = false;
+
+    function closeIntro() {
+        document.getElementById('intro-modal').style.display = 'none';
+    }
 
     function levenshtein(s, t) {
         if (!s.length) return t.length;
@@ -359,7 +426,8 @@
         const gallery = document.getElementById('gallery');
         gallery.innerHTML = '';
 
-        state.forEach((item, index) => {
+        galleryOrder.forEach((itemIdx) => {
+            const item = state[itemIdx];
             const card = document.createElement('div');
             card.className = 'stamp-card';
             
@@ -373,13 +441,12 @@
                 const dragData = JSON.parse(rawData);
                 
                 if (dragData.type === 'name') {
-                    handleDropName(index, dragData.value, dragData.sourceIdx);
+                    handleDropName(itemIdx, dragData.value, dragData.sourceIdx);
                 } else if (dragData.type === 'bio') {
-                    handleDropBioOnTarget(index, dragData.value, dragData.sourceIdx, 'picture');
+                    handleDropBioOnTarget(itemIdx, dragData.value, dragData.sourceIdx, 'picture');
                 }
             };
 
-            // Show bio on card if explicitly attached to picture OR name/picture are matched and bio was solved on name
             const showBio = item.descOnPicture || (item.solvedName && item.descOnName);
 
             card.innerHTML = `
@@ -391,8 +458,13 @@
                     <div class="desc-slot">${showBio ? item.description : ''}</div>
                 </div>
                 <div class="card-actions">
-                    ${!item.solvedName ? `
-                        <input type="text" placeholder="Type name..." id="input-${index}" onkeypress="if(event.key==='Enter') checkRecall(${index})">
+                    ${!item.solvedName && !nameBankRevealed ? `
+                        <input type="text" 
+                               placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked'}" 
+                               id="input-${itemIdx}" 
+                               ${item.namePotential <= 20 ? 'disabled' : ''}
+                               onkeypress="if(event.key==='Enter') checkRecall(${itemIdx})">
+                        ${item.namePotential <= 20 ? '<div style="font-size:0.6rem; color:red;">Reveal name bank to proceed</div>' : ''}
                     ` : ""}
                 </div>
             `;
@@ -405,35 +477,39 @@
         if (nameBankRevealed) {
             nameContent.innerHTML = '<div id="name-bank-scroll" class="bank-scroll"></div>';
             const scroll = document.getElementById('name-bank-scroll');
-            state.filter(s => !s.solvedName).map(s => ({name: s.name, idx: s.originalIndex, bioSolved: s.descOnName, bio: s.description})).sort((a,b) => a.name.localeCompare(b.name)).forEach(obj => {
-                const el = document.createElement('div');
-                el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '');
-                el.innerHTML = `
-                    <div style="font-weight:bold;">${obj.name}</div>
-                    ${obj.bioSolved ? `<div class="bank-item-bio">${obj.bio}</div>` : ''}
-                `;
-                el.draggable = true;
-                
-                el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
-                el.ondragleave = () => { el.classList.remove('drag-over'); };
-                el.ondrop = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    el.classList.remove('drag-over');
-                    const dragData = JSON.parse(e.dataTransfer.getData("application/quiz"));
-                    if (dragData.type === 'bio') {
-                        handleDropBioOnTarget(obj.idx, dragData.value, dragData.sourceIdx, 'name');
-                    }
-                };
+            
+            // (2) Alphabetize name list
+            state.filter(s => !s.solvedName)
+                 .map(s => ({name: s.name, idx: s.originalIndex, bioSolved: s.descOnName, bio: s.description}))
+                 .sort((a,b) => a.name.localeCompare(b.name))
+                 .forEach(obj => {
+                    const el = document.createElement('div');
+                    el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '');
+                    el.innerHTML = `
+                        <div style="font-weight:bold;">${obj.name}</div>
+                        ${obj.bioSolved ? `<div class="bank-item-bio">${obj.bio}</div>` : ''}
+                    `;
+                    el.draggable = true;
+                    
+                    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
+                    el.ondragleave = () => { el.classList.remove('drag-over'); };
+                    el.ondrop = (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        el.classList.remove('drag-over');
+                        const rawData = e.dataTransfer.getData("application/quiz");
+                        if (!rawData) return;
+                        const dragData = JSON.parse(rawData);
+                        if (dragData.type === 'bio') {
+                            handleDropBioOnTarget(obj.idx, dragData.value, dragData.sourceIdx, 'name');
+                        }
+                    };
 
-                el.ondragstart = (e) => {
-                    e.dataTransfer.setData("application/quiz", JSON.stringify({
-                        type: 'name', 
-                        value: obj.name, 
-                        sourceIdx: obj.idx
-                    }));
-                };
-                scroll.appendChild(el);
+                    el.ondragstart = (e) => {
+                        e.dataTransfer.setData("application/quiz", JSON.stringify({
+                            type: 'name', value: obj.name, sourceIdx: obj.idx
+                        }));
+                    };
+                    scroll.appendChild(el);
             });
         } else {
             document.getElementById('reveal-names-btn').onclick = () => { 
@@ -445,25 +521,28 @@
 
         const bioScroll = document.getElementById('bio-bank-scroll');
         bioScroll.innerHTML = '';
-        // Bio only appears in bank if it hasn't been correctly glued anywhere (neither picture nor name)
-        state.filter(s => !s.descOnPicture && !s.descOnName).map(s => ({desc: s.description, idx: s.originalIndex})).sort((a,b) => a.desc.localeCompare(b.desc)).forEach(obj => {
-            const el = document.createElement('div');
-            el.className = 'bank-item';
-            el.innerText = obj.desc;
-            el.draggable = true;
-            el.ondragstart = (e) => {
-                e.dataTransfer.setData("application/quiz", JSON.stringify({
-                    type: 'bio', 
-                    value: obj.desc,
-                    sourceIdx: obj.idx
-                }));
-            };
-            bioScroll.appendChild(el);
+        
+        // (1) Randomize bios in Biographies bank
+        state.filter(s => !s.descOnPicture && !s.descOnName)
+             .map(s => ({desc: s.description, idx: s.originalIndex}))
+             .sort(() => Math.random() - 0.5)
+             .forEach(obj => {
+                const el = document.createElement('div');
+                el.className = 'bank-item';
+                el.innerText = obj.desc;
+                el.draggable = true;
+                el.ondragstart = (e) => {
+                    e.dataTransfer.setData("application/quiz", JSON.stringify({
+                        type: 'bio', value: obj.desc, sourceIdx: obj.idx
+                    }));
+                };
+                bioScroll.appendChild(el);
         });
     }
 
     function checkRecall(index) {
-        const input = document.getElementById(`input-${index}`).value.trim().toLowerCase();
+        const inputField = document.getElementById(`input-${index}`);
+        const input = inputField.value.trim().toLowerCase();
         if (!input) return;
         const target = state[index];
         const isMatch = [target.name, ...target.aliases].some(a => {
@@ -477,15 +556,13 @@
             showMessage(`Correct!`);
             render();
         } else {
-            target.namePotential = Math.max(0, target.namePotential - 2);
-            if (target.namePotential === 0) {
-                target.solvedName = true;
-                target.points = 0;
-                showMessage(`${target.name} revealed.`);
+            target.namePotential = Math.max(20, target.namePotential - 2);
+            if (target.namePotential === 20) {
+                showMessage("Maximum free recall attempts reached.");
             } else {
                 showMessage("Incorrect guess.");
             }
-            document.getElementById(`input-${index}`).value = '';
+            inputField.value = '';
             render();
         }
     }
@@ -522,25 +599,20 @@
         const targetEntity = state[targetIdx];
         const bioOwner = state[bioOwnerIdx];
 
-        // Is the bio being dropped on its correct target?
         if (bioText === targetEntity.description) {
-            if (targetType === 'picture') {
-                targetEntity.descOnPicture = true;
-            } else {
-                targetEntity.descOnName = true;
-            }
+            if (targetType === 'picture') targetEntity.descOnPicture = true;
+            else targetEntity.descOnName = true;
+            
             targetEntity.solvedDesc = true;
             targetEntity.bonusPoints = targetEntity.bioPotential;
             showMessage(`Correct bio match!`);
             render();
         } else {
-            // Bio penalty logic: -5 to bio owner and -5 to target figure's bio pool
             targetEntity.bioPotential = Math.max(0, targetEntity.bioPotential - 5);
             bioOwner.bioPotential = Math.max(0, bioOwner.bioPotential - 5);
             
             let msg = `Incorrect bio match!`;
             
-            // Handle exhaustion and reveal based on target type
             if (targetEntity.bioPotential === 0 && !targetEntity.solvedDesc) {
                 targetEntity.solvedDesc = true;
                 targetEntity.bonusPoints = 0;
@@ -551,8 +623,6 @@
             if (bioOwner.bioPotential === 0 && !bioOwner.solvedDesc) {
                 bioOwner.solvedDesc = true;
                 bioOwner.bonusPoints = 0;
-                // Since this happened while dragging the bio, we reveal it on the "owner's" name (sidebar)
-                // as a default "un-matched" reveal location to avoid card-spoiling.
                 bioOwner.descOnName = true; 
                 msg += ` Bio revealed for ${bioOwner.name}.`;
             }
