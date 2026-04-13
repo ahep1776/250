@@ -99,7 +99,7 @@
             background: rgba(255,255,255,0.3);
             border-radius: 4px;
             padding: 8px;
-            scroll-behavior: smooth;
+            /* Removed scroll-behavior: smooth to prevent jank during re-renders */
         }
 
         .bank-item {
@@ -113,7 +113,7 @@
             box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
             user-select: none;
             position: relative;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
 
         .bank-item.selected {
@@ -162,7 +162,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            min-height: 340px;
+            min-height: 280px; 
             transition: outline 0.2s, background-color 0.2s;
             cursor: pointer;
         }
@@ -300,17 +300,14 @@
             margin-top: 10px;
         }
 
-        /* RESPONSIVE RE-LAYOUT
-           When too narrow for 5 columns, move banks to a fixed bottom drawer 
-        */
         @media (max-width: 1150px) {
             .main-layout {
                 flex-direction: column;
             }
             .sidebar {
                 width: 100%;
-                height: 30vh; /* Fixed height for banks at bottom */
-                flex-direction: row; /* Side by side banks */
+                height: 30vh; 
+                flex-direction: row; 
                 border-left: none;
                 border-top: 2px solid #b5b0a3;
                 box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
@@ -322,20 +319,31 @@
                 border-right: none;
             }
             .gallery-grid {
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                grid-template-columns: repeat(5, 1fr);
             }
         }
 
-        /* Even tighter screens */
-        @media (max-width: 600px) {
+        @media (max-width: 850px) {
+            .gallery-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 650px) {
             .sidebar {
                 height: 40vh;
-                flex-direction: column; /* Stack banks if very narrow */
+                flex-direction: column; 
             }
             .sidebar-section {
                 border-right: none;
                 border-bottom: 1px solid #b5b0a3;
             }
+            .gallery-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 450px) {
             .gallery-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -476,9 +484,21 @@
         const newBioBankScroll = document.getElementById('bio-bank-scroll');
         const newGameArea = document.querySelector('.game-area');
 
+        // Restore scroll positions instantly (no animation)
         if (newNameBankScroll) newNameBankScroll.scrollTop = scrollPositions.name;
         if (newBioBankScroll) newBioBankScroll.scrollTop = scrollPositions.bio;
         if (newGameArea) newGameArea.scrollTop = scrollPositions.game;
+    }
+
+    function updateSelectionUI() {
+        // Light-weight class update to avoid innerHTML resets and scroll jank
+        document.querySelectorAll('.bank-item').forEach(el => {
+            const type = el.getAttribute('data-type');
+            const sourceIdx = parseInt(el.getAttribute('data-idx'));
+            const isSelected = selectedData && selectedData.type === type && selectedData.sourceIdx === sourceIdx;
+            if (isSelected) el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
     }
 
     function handleBankClick(type, value, sourceIdx) {
@@ -487,7 +507,7 @@
         } else {
             selectedData = { type, value, sourceIdx };
         }
-        render();
+        updateSelectionUI();
     }
 
     function handleGalleryClick(itemIdx) {
@@ -499,7 +519,7 @@
             handleDropBioOnTarget(itemIdx, selectedData.value, selectedData.sourceIdx, 'picture');
         }
         selectedData = null;
-        render();
+        render(); // Full render required on match/penalty to update portraits/reveals
     }
 
     function renderGallery() {
@@ -543,7 +563,7 @@
                                placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked. Reveal name bank.'}" 
                                id="input-${itemIdx}" 
                                ${item.namePotential <= 20 ? 'disabled' : ''}
-                               onkeypress="if(event.key==='Enter') checkRecall(${itemIdx})">
+                               onkeydown="if(event.key==='Enter' || event.key==='Tab') { event.preventDefault(); checkRecall(${itemIdx}); }">
                     ` : ""}
                 </div>
             `;
@@ -564,6 +584,8 @@
                     const el = document.createElement('div');
                     const isSelected = selectedData && selectedData.type === 'name' && selectedData.sourceIdx === obj.idx;
                     el.className = 'bank-item' + (obj.bioSolved ? ' expanded' : '') + (isSelected ? ' selected' : '');
+                    el.setAttribute('data-type', 'name');
+                    el.setAttribute('data-idx', obj.idx);
                     el.innerHTML = `
                         <div style="font-weight:bold;">${obj.name}</div>
                         ${obj.bioSolved ? `<div class="bank-item-bio">${obj.bio}</div>` : ''}
@@ -620,6 +642,8 @@
                 const el = document.createElement('div');
                 const isSelected = selectedData && selectedData.type === 'bio' && selectedData.sourceIdx === item.originalIndex;
                 el.className = 'bank-item' + (isSelected ? ' selected' : '');
+                el.setAttribute('data-type', 'bio');
+                el.setAttribute('data-idx', item.originalIndex);
                 el.innerText = item.description;
                 el.draggable = true;
                 el.onclick = (e) => {
@@ -638,6 +662,7 @@
 
     function checkRecall(index) {
         const inputField = document.getElementById(`input-${index}`);
+        if (!inputField) return;
         const input = inputField.value.trim().toLowerCase();
         if (!input) return;
         const target = state[index];
