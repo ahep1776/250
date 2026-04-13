@@ -359,19 +359,19 @@
         { id: "10", name: "George Washington", aliases: ["Washington", "G. Washington"], description: "Commander in chief of the Continental Army and first U.S. president", image: "10.png" },
         { id: "11", name: "Bernardo de Gálvez", aliases: ["Galvez", "Bernardo de Galvez", "B. de Galvez"], description: "Governor of Spanish Louisiana who aided patriots and drove the British from West Florida", image: "11.png" },
         { id: "12", name: "Alexander Hamilton", aliases: ["Hamilton", "A. Hamilton"], description: "Chief aide to George Washington, advocate for the Constitution, and founder of the U.S. financial system", image: "12.png" },
-        { id: "13", "name": "Patrick Henry", "aliases": ["Henry", "P. Henry"], "description": "Orator whose passionate speeches rallied the patriots against British rule", "image": "13.png" },
-        { id: "14", "name": "Thaddeus Kosciuszko", "aliases": ["Kosciuszko", "T. Kosciuszko"], "description": "Polish military engineer whose fortifications helped win the Battle of Saratoga", "image": "14.png" },
-        { id: "15", "name": "Benjamin Franklin", "aliases": ["Franklin", "Ben Franklin", "B. Franklin"], "description": "Signer of the Declaration of Independence, founder of the world’s first abolition society, and first U.S. Postmaster General", "image": "15.png" },
-        { id: "16", "name": "Mercy Otis Warren", "aliases": ["Warren", "M. Warren", "M. O. Warren"], "description": "Poet, playwright, and historian whose works chronicled the Revolution", "image": "16.png" },
-        { id: "17", "name": "John Adams", "aliases": ["Adams", "J. Adams"], "description": "Delegate to the Continental Congress, signer of the Declaration of Independence, and second U.S. president", "image": "17.png" },
-        { id: "18", "name": "James Madison", "aliases": ["Madison", "J. Madison"], "description": "Key architect of the Constitution, co-author of The Federalist, and fourth U.S. president", "image": "18.png" },
-        { id: "19", "name": "Esther DeBerdt Reed", "aliases": ["Reed", "Esther Reed", "E. Reed"], "description": "Author of “Sentiments of an American Woman,” which helped raise funds for the Continental Army", "image": "19.png" },
-        { id: "20", "name": "John Dickinson", "aliases": ["Dickinson", "J. Dickinson"], "description": "“Penman of the Revolution,” whose writings articulated America’s revolutionary ideals", "image": "20.png" },
-        { id: "21", "name": "Baron von Steuben", "aliases": ["Steuben", "von Steuben"], "description": "Prussian military officer who helped professionalize and transform the Continental Army into a formidable force", "image": "21.png" },
-        { id: "22", "name": "Deborah Sampson", "aliases": ["Sampson", "D. Sampson"], "description": "Disguised as a man to serve in the Continental Army and only woman of the era to earn a military pension", "image": "22.png" },
-        { id: "23", "name": "Agwalondongwas", "aliases": ["Good Peter", "Agwalondongwas"], "description": "Oneida leader called “Good Peter,” who supported American forces and worked for his people’s future", "image": "23.png" },
-        { id: "24", "name": "Cornplanter", "aliases": ["Cornplanter"], "description": "Seneca war chief and peace negotiator between Native nations and the U.S. after the Revolution", "image": "24.png" },
-        { id: "25", "name": "Marquis de Lafayette", "aliases": ["Lafayette", "de Lafayette", "Gilbert du Motier"], "description": "French general who played a key role in the Continental Army’s victory at Yorktown", "image": "25.png" }
+        { id: "13", name: "Patrick Henry", aliases: ["Henry", "P. Henry"], description: "Orator whose passionate speeches rallied the patriots against British rule", image: "13.png" },
+        { id: "14", name: "Thaddeus Kosciuszko", aliases: ["Kosciuszko", "T. Kosciuszko"], description: "Polish military engineer whose fortifications helped win the Battle of Saratoga", image: "14.png" },
+        { id: "15", name: "Benjamin Franklin", aliases: ["Franklin", "Ben Franklin", "B. Franklin"], description: "Signer of the Declaration of Independence, founder of the world’s first abolition society, and first U.S. Postmaster General", image: "15.png" },
+        { id: "16", name: "Mercy Otis Warren", aliases: ["Warren", "M. Warren", "M. O. Warren"], description: "Poet, playwright, and historian whose works chronicled the Revolution", image: "16.png" },
+        { id: "17", name: "John Adams", aliases: ["Adams", "J. Adams"], description: "Delegate to the Continental Congress, signer of the Declaration of Independence, and second U.S. president", image: "17.png" },
+        { id: "18", name: "James Madison", aliases: ["Madison", "J. Madison"], description: "Key architect of the Constitution, co-author of The Federalist, and fourth U.S. president", image: "18.png" },
+        { id: "19", name: "Esther DeBerdt Reed", "aliases": ["Reed", "Esther Reed", "E. Reed"], "description": "Author of “Sentiments of an American Woman,” which helped raise funds for the Continental Army", "image": "19.png" },
+        { id: "20", name: "John Dickinson", "aliases": ["Dickinson", "J. Dickinson"], "description": "“Penman of the Revolution,” whose writings articulated America’s revolutionary ideals", "image": "20.png" },
+        { id: "21", name: "Baron von Steuben", "aliases": ["Steuben", "von Steuben"], "description": "Prussian military officer who helped professionalize and transform the Continental Army into a formidable force", "image": "21.png" },
+        { id: "22", name: "Deborah Sampson", "aliases": ["Sampson", "D. Sampson"], "description": "Disguised as a man to serve in the Continental Army and only woman of the era to earn a military pension", "image": "22.png" },
+        { id: "23", name: "Agwalondongwas", "aliases": ["Good Peter", "Agwalondongwas"], "description": "Oneida leader called “Good Peter,” who supported American forces and worked for his people’s future", "image": "23.png" },
+        { id: "24", name: "Cornplanter", "aliases": ["Cornplanter"], "description": "Seneca war chief and peace negotiator between Native nations and the U.S. after the Revolution", "image": "24.png" },
+        { id: "25", name: "Marquis de Lafayette", "aliases": ["Lafayette", "de Lafayette", "Gilbert du Motier"], "description": "French general who played a key role in the Continental Army’s victory at Yorktown", "image": "25.png" }
     ];
 
     // Initialize random orders once
@@ -480,11 +480,10 @@
                 <div class="card-actions">
                     ${!item.solvedName && !nameBankRevealed ? `
                         <input type="text" 
-                               placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked'}" 
+                               placeholder="${item.namePotential > 20 ? 'Type name...' : 'Locked. Reveal name bank.'}" 
                                id="input-${itemIdx}" 
                                ${item.namePotential <= 20 ? 'disabled' : ''}
                                onkeypress="if(event.key==='Enter') checkRecall(${itemIdx})">
-                        ${item.namePotential <= 20 ? '<div style="font-size:0.6rem; color:red;">Reveal name bank to proceed</div>' : ''}
                     ` : ""}
                 </div>
             `;
@@ -582,6 +581,11 @@
             }
             inputField.value = '';
             render();
+            // Re-focus the input after render if it's still available and enabled
+            const nextInput = document.getElementById(`input-${index}`);
+            if (nextInput && !nextInput.disabled) {
+                nextInput.focus();
+            }
         }
     }
 
@@ -644,7 +648,6 @@
                 bioOwner.solvedDesc = true;
                 bioOwner.bonusPoints = 0;
                 
-                // Reveal on the same type of entity as the drop target
                 if (targetType === 'picture') bioOwner.descOnPicture = true;
                 else bioOwner.descOnName = true;
                 
